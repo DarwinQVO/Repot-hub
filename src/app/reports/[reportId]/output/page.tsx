@@ -28,9 +28,14 @@ export default function OutputPage() {
     load()
   }, [reportId])
 
-  async function updateAnswer(id: string, text: string) {
-    setQas((prev) => prev.map((qa) => (qa.id === id ? { ...qa, answer_text: text } : qa)))
-    await supabase.from("report_questions").update({ answer_text: text }).eq("id", id)
+  async function handleChange(id: string, text: string) {
+    setQas((prev) =>
+      prev.map((qa) => (qa.id === id ? { ...qa, answer_text: text } : qa))
+    )
+    await supabase
+      .from("report_questions")
+      .update({ answer_text: text })
+      .eq("id", id)
   }
 
   return (
@@ -49,7 +54,7 @@ export default function OutputPage() {
               className="w-full border rounded p-2"
               rows={3}
               value={qa.answer_text ?? ""}
-              onChange={(e) => updateAnswer(qa.id, e.target.value)}
+              onChange={(e) => handleChange(qa.id, e.target.value)}
             />
           </div>
         ))

@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabaseClient"
 import { runPerplexity } from "@/app/actions/runPerplexity"
 
-interface Question {
+interface QuestionRow {
   id: string
   question_text: string
 }
@@ -13,12 +13,13 @@ interface Question {
 export default function SetupPage() {
   const { reportId } = useParams<{ reportId: string }>()
   const router = useRouter()
-  const [questions, setQuestions] = useState<Question[]>([])
+  const [questions, setQuestions] = useState<QuestionRow[]>([])
   const [loading, setLoading] = useState(true)
   const [running, setRunning] = useState(false)
 
+  /* Load questions once */
   useEffect(() => {
-    async function load() {
+    async function fetchQuestions() {
       const { data } = await supabase
         .from("report_questions")
         .select("id, question_text")
@@ -27,7 +28,7 @@ export default function SetupPage() {
       setQuestions(data ?? [])
       setLoading(false)
     }
-    load()
+    fetchQuestions()
   }, [reportId])
 
   async function handleRun() {
