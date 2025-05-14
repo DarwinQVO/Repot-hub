@@ -6,9 +6,12 @@ const CONCURRENCY = 5
 const perplexityUrl = "https://api.perplexity.ai/chat/completions"
 const perplexityModel = "sonar-pro"
 
-/* ─── Call Perplexity and get HTML with clickable sources ── */
+/* ╭──────────────────────────────────────── askPerplexity ─╮ */
 async function askPerplexity(prompt: string): Promise<string> {
-  const apiKey = process.env.PERPLEXITY_API_KEY!
+  const apiKey = process.env.PERPLEXITY_API_KEY
+  if (!apiKey) throw new Error("PERPLEXITY_API_KEY env var is missing")
+
+  /* 1. Llamada HTTP */
   const res = await fetch(perplexityUrl, {
     method: "POST",
     headers: {
@@ -31,19 +34,23 @@ async function askPerplexity(prompt: string): Promise<string> {
 
   const json = await res.json()
 
-  /* ① Texto con tokens [N]  */
+  /* 2. Texto con tokens [N] */
   const text: string =
     json.choices?.[0]?.message?.content ?? "No answer returned."
 
-  /* ② Tabla id→url */
-  const citations: Record<string, string> = {}
-  json.citations?.forEach((c: { id: number; url: string }) => {
-    citations[c.id] = c.url
-  })
+  /* 3. Tabla id → url  (distintas keys según plan) */
+  type Cit = { id: number; url: string }
+  const raw: Cit[] =
+    json.citations ??
+    json.source_attributions ??
+    json.sources ??
+    []
+  const table: Record<string, string> = {}
+  raw.forEach((c) => (table[c.id] = c.url))
 
-  /* ③ Reemplaza [N] por links */
+  /* 4. Reemplaza [N] por <a href="..." target="_blank">[N]</a> */
   const html = text.replace(/\[(\d+)]/g, (_, n) => {
-    const url = citations[n]
+    const url = table[n]
     return url
       ? `<a href="${url}" target="_blank" class="text-blue-600 underline">[${n}]</a>`
       : `[${n}]`
@@ -51,8 +58,9 @@ async function askPerplexity(prompt: string): Promise<string> {
 
   return html
 }
+/* ╰─────────────────────────────────────────────────────────╯ */
 
-/* ─── Helper: ejecuta en lotes ── */
+/* Helper: ejecuta tareas en lotes */
 async function inBatches<T, R>(
   items: T[],
   batch: number,
@@ -70,18 +78,21 @@ async function inBatches<T, R>(
   return out
 }
 
-/* ─── Main action ── */
+/* ╭────────────────────── main action ─────────────────────╮ */
 export async function runPerplexity(reportId: string) {
   /* 1. Preguntas sin respuesta */
-  const { data: qs, error } = await supabase
+  const { data: qs, error: fetchErr } = await supabase
     .from("report_questions")
     .select("id, question_text")
     .eq("report_id", reportId)
     .is("answer_text", null)
 
-  if (error) throw new Error("Failed to fetch questions")
+  if (fetchErr) {
+    console.error("Supabase fetch error ➜", fetchErr)
+    throw new Error("Failed to fetch questions")
+  }
 
-  /* 2. Llamadas batched */
+  /* 2. Llamar a Perplexity por lotes */
   const answers = await inBatches(
     qs ?? [],
     CONCURRENCY,
@@ -91,15 +102,17 @@ export async function runPerplexity(reportId: string) {
     })
   )
 
-  /* 3. Guarda */
+  /* 3. Guardar respuestas */
   await Promise.all(
     answers.map(async (a) => {
       const { error: e } = await supabase
         .from("report_questions")
         .update({ answer_text: a.answer_text })
         .eq("id", a.id)
+
       if (e) console.error("Supabase update error ➜", e)
     })
   )
 }
+/* ╰─────────────────────────────────────────────────────────╯ */
 
