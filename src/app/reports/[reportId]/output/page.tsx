@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useEffect, useState } from "react"
+import Link from "next/link"
 import { useParams } from "next/navigation"
 import { supabase } from "@/lib/supabaseClient"
 
@@ -28,35 +29,33 @@ export default function OutputPage() {
     load()
   }, [reportId])
 
-  async function handleChange(id: string, text: string) {
-    setQas((prev) =>
-      prev.map((qa) => (qa.id === id ? { ...qa, answer_text: text } : qa))
-    )
-    await supabase
-      .from("report_questions")
-      .update({ answer_text: text })
-      .eq("id", id)
-  }
-
   return (
-    <div className="p-6 max-w-3xl mx-auto">
-      <h1 className="text-2xl font-bold mb-4">Output</h1>
+    <div className="p-6 max-w-4xl mx-auto">
+      <header className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold">Output</h1>
+        <Link
+          href={`/reports/${reportId}/setup`}
+          className="text-blue-600 underline"
+        >
+          ← Back to Setup
+        </Link>
+      </header>
 
       {loading ? (
         <p>Loading…</p>
       ) : (
         qas.map((qa, i) => (
-          <div key={qa.id} className="mb-6">
-            <p className="font-semibold mb-1">
+          <article key={qa.id} className="mb-10">
+            <h2 className="font-semibold text-lg mb-2">
               {i + 1}. {qa.question_text}
-            </p>
-            <textarea
-              className="w-full border rounded p-2"
-              rows={3}
-              value={qa.answer_text ?? ""}
-              onChange={(e) => handleChange(qa.id, e.target.value)}
+            </h2>
+            <section
+              className="prose max-w-none"
+              dangerouslySetInnerHTML={{
+                __html: qa.answer_text ?? "<em>(no answer)</em>",
+              }}
             />
-          </div>
+          </article>
         ))
       )}
     </div>
