@@ -4,9 +4,9 @@ import { supabase } from "@/lib/supabaseClient"
 
 const CONCURRENCY = 5
 const perplexityUrl = "https://api.perplexity.ai/chat/completions"
-const perplexityModel = "sonar-pro"
+const model = "sonar-pro"                                  // modelo Pro
 
-/* ── Real call to Perplexity ────────────────────────────── */
+/* ── Call Perplexity and embed citations ── */
 async function askPerplexity(prompt: string): Promise<string> {
   const apiKey = process.env.PERPLEXITY_API_KEY
   if (!apiKey) throw new Error("PERPLEXITY_API_KEY env var is missing")
@@ -18,8 +18,8 @@ async function askPerplexity(prompt: string): Promise<string> {
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: perplexityModel,
-      include_citations: true,                           // ⬅️ clave
+      model,
+      include_citations: true,                             // clave
       messages: [
         { role: "system", content: "Be precise and concise." },
         { role: "user", content: prompt },
@@ -34,21 +34,22 @@ async function askPerplexity(prompt: string): Promise<string> {
 
   const json = await res.json()
 
-  /* ① Texto con tokens [N] */
+  /* 1. Texto con tokens [N] */
   const text: string =
     json.choices?.[0]?.message?.content ?? "No answer returned."
 
-  /* ② Fuentes: citations o source_attributions */
-  type Cit = { id: number; url: string }
-  const raw: Cit[] =
-    json.citations ??
-    json.source_attributions ??
-    []
+  /* 2. Citations o source_attributions → id/url */
+  type Raw = { id: number; url?: string; source?: string }
+  const raw: Raw[] = json.citations ?? json.source_attributions ?? []
 
-  /* ③ Map id→url */
-  const table = Object.fromEntries(raw.map((c) => [String(c.id), c.url]))
+  const table: Record<string, string> = {}
+  raw.forEach((c) => {
+    const key = String(c.id + 1)             // id 0 → token [1]
+    const link = c.url ?? c.source ?? ""
+    if (link) table[key] = link
+  })
 
-  /* ④ Reemplaza [N] por <a …>[N]</a> */
+  /* 3. Sustituir tokens por links */
   const html = text.replace(/\[(\d+)]/g, (_, n) => {
     const url = table[n]
     return url
@@ -59,15 +60,15 @@ async function askPerplexity(prompt: string): Promise<string> {
   return html
 }
 
-/* ── Helper batching ────────────────────────────────────── */
+/* ── Helper batching ── */
 async function inBatches<T, R>(
   items: T[],
-  batch: number,
+  size: number,
   fn: (item: T) => Promise<R>
 ) {
   const out: R[] = []
-  for (let i = 0; i < items.length; i += batch) {
-    const slice = items.slice(i, i + batch)
+  for (let i = 0; i < items.length; i += size) {
+    const slice = items.slice(i, i + size)
     const settled = await Promise.allSettled(slice.map(fn))
     settled.forEach((s) => {
       if (s.status === "fulfilled") out.push(s.value)
@@ -77,13 +78,15 @@ async function inBatches<T, R>(
   return out
 }
 
-/* ── Main action ────────────────────────────────────────── */
+/* ── Main action ── */
 export async function runPerplexity(reportId: string) {
-  const { data: qs } = await supabase
+  const { data: qs, error } = await supabase
     .from("report_questions")
     .select("id, question_text")
     .eq("report_id", reportId)
     .is("answer_text", null)
+
+  if (error) throw new Error("Failed to fetch questions")
 
   const answers = await inBatches(
     qs ?? [],
