@@ -3,6 +3,7 @@
 import { Dialog } from "@headlessui/react"
 import { EditorContent, useEditor } from "@tiptap/react"
 import StarterKit from "@tiptap/starter-kit"
+import Link from "@tiptap/extension-link"          /* ← nueva extensión */
 import React, { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabaseClient"
 
@@ -21,16 +22,26 @@ export default function EditAnswerModal({
 }: Props) {
   const [saving, setSaving] = useState(false)
 
+  /* Editor con Link */
   const editor = useEditor({
-    extensions: [StarterKit],
+    extensions: [
+      StarterKit,
+      Link.configure({
+        HTMLAttributes: {
+          class: "text-blue-400 underline",  // mismo estilo de la vista
+          target: "_blank",
+          rel: "noopener noreferrer",
+        },
+        openOnClick: false,
+      }),
+    ],
     content: initialHtml || "<p></p>",
     editable: true,
   })
 
-  /* refresca al abrir */
+  /* refresca cuando cambie la respuesta */
   useEffect(() => {
-    if (editor && open)
-      editor.commands.setContent(initialHtml || "<p></p>")
+    if (editor && open) editor.commands.setContent(initialHtml || "<p></p>")
   }, [initialHtml, open, editor])
 
   async function handleSave() {
@@ -79,4 +90,3 @@ export default function EditAnswerModal({
     </Dialog>
   )
 }
-
