@@ -1,58 +1,47 @@
+/* ── src/app/reports/page.tsx ─────────────────────────────────────────── */
+/* evita cualquier pre-render */
 export const dynamic = 'force-dynamic';
 
-import Link from "next/link"
-import { supabase } from "@/lib/supabaseClient"
+import Link from "next/link";
 
-interface Row {
-  id: string
-  entity_name: string
-  entity_type: string
-  created_at: string
-  completed: boolean
+/** Runtime import to bypass build-time env check  */
+async function getReports() {
+  const { supabase } = await import('@/lib/supabaseClient');
+  const { data } = await supabase
+    .from('reports')
+    .select('id, entity_name')
+    .order('created_at', { ascending: false });
+
+  return data ?? [];
 }
 
-export const revalidate = 0
-
 export default async function ReportsPage() {
-  const { data } = await supabase
-    .from("reports")
-    .select("id, entity_name, entity_type, created_at, completed")
-    .order("created_at", { ascending: false })
-
-  const rows = (data ?? []) as Row[]
+  const rows = await getReports();
 
   return (
-    <div>
-      <h1 className="text-3xl font-bold mb-8">Reports</h1>
+    <div className="max-w-xl mx-auto py-8">
+      <h1 className="text-3xl font-bold mb-6">Reports</h1>
 
       {rows.length === 0 ? (
-        <p>No reports yet.</p>
+        <p className="text-zinc-400 mb-6">No reports yet.</p>
       ) : (
-        <ul className="space-y-6">
+        <ul className="space-y-3 mb-6">
           {rows.map((r) => (
-            <li key={r.id} className="card p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-lg font-semibold">{r.entity_name}</h2>
-                  <p className="text-sm text-zinc-400">
-                    {r.entity_type} ·{" "}
-                    {new Date(r.created_at).toLocaleDateString()} ·{" "}
-                    {r.completed ? "done" : "pending"}
-                  </p>
-                </div>
-
-                <Link
-                  href={`/reports/${r.id}/${r.completed ? "output" : "setup"}`}
-                  className="flex items-center gap-1 hover:underline"
-                >
-                  View →
-                </Link>
-              </div>
+            <li key={r.id} className="card p-3">
+              <Link href={`/reports/${r.id}/setup`} className="hover:underline">
+                {r.entity_name}
+              </Link>
             </li>
           ))}
         </ul>
       )}
-    </div>
-  )
-}
 
+      <Link
+        href="/reports/new"
+        className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white"
+      >
+        New Report
+      </Link>
+    </div>
+  );
+}
