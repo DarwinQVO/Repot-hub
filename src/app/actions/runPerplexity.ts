@@ -5,7 +5,7 @@ import { supabase } from "@/lib/supabaseClient"
 /* ─────────── Config ─────────── */
 const CONCURRENCY   = 5
 const perplexityUrl = "https://api.perplexity.ai/chat/completions"
-const model         = "sonar-pro"      // o "sonar-small-online"
+const model         = "sonar-pro"        // o "sonar-small-online"
 
 /* ── Llama a Perplexity y añade links ── */
 async function askPerplexity(prompt: string): Promise<string> {
@@ -36,29 +36,39 @@ async function askPerplexity(prompt: string): Promise<string> {
 
   const json = await res.json()
 
-  /* LOG solo en dev */
+  /* LOG una vez en dev */
   if (process.env.NODE_ENV !== "production") {
     console.log("RAW PERPLEXITY RESPONSE")
     console.dir(json, { depth: null })
   }
 
-  /* texto con tokens */
-  const text = json.choices?.[0]?.message?.content ?? "(no answer)"
+  /* texto con tokens [N] */
+  const text: string =
+    json.choices?.[0]?.message?.content ?? "(no answer)"
 
-  /* recoge citas */
-  type Raw = { id?: number; url?: string; source?: string }
-  const raw: Raw[] = json.citations ?? json.source_attributions ?? []
-  const map: Record<string, string> = {}
-  raw.forEach((c) => {
-    const k = String((c.id ?? 0) + 1)        // 0 → [1]
-    const l = c.url ?? c.source ?? ""
-    if (l) map[k] = l
-  })
+  /* ── 2. Normaliza las fuentes a map key→url ── */
+  const table: Record<string, string> = {}
 
-  /* sustituir */
+  if (Array.isArray(json.citations) && json.citations.length && typeof json.citations[0] === "string") {
+    /* caso: array de strings  */
+    json.citations.forEach((url: string, idx: number) => {
+      table[String(idx + 1)] = url
+    })
+  } else {
+    /* caso: objetos id/url o id/source */
+    type Raw = { id?: number; url?: string; source?: string }
+    const arr: Raw[] = json.citations ?? json.source_attributions ?? []
+    arr.forEach((c, idx) => {
+      const key  = String((c.id ?? idx) + 1)         // id 0 → token [1]
+      const link = c.url ?? c.source ?? ""
+      if (link) table[key] = link
+    })
+  }
+
+  /* 3. Sustituir tokens por enlaces */
   const html = text.replace(/\[(\d+)]/g, (_, n) =>
-    map[n]
-      ? `<a href="${map[n]}" target="_blank" class="text-blue-600 underline">[${n}]</a>`
+    table[n]
+      ? `<a href="${table[n]}" target="_blank" class="text-blue-600 underline">[${n}]</a>`
       : `[${n}]`
   )
 
