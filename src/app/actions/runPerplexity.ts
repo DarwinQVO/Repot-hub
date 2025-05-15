@@ -2,11 +2,12 @@
 
 import { supabase } from "@/lib/supabaseClient"
 
+/* ─────────── Config ─────────── */
 const CONCURRENCY   = 5
 const perplexityUrl = "https://api.perplexity.ai/chat/completions"
-const model         = "sonar-pro"        // o "sonar-small-online"
+const model         = "sonar-pro"      // o "sonar-small-online"
 
-/* ── Call Perplexity with web_access and embed citations ── */
+/* ── Llama a Perplexity y añade links ── */
 async function askPerplexity(prompt: string): Promise<string> {
   const apiKey = process.env.PERPLEXITY_API_KEY
   if (!apiKey) throw new Error("PERPLEXITY_API_KEY missing")
@@ -20,7 +21,7 @@ async function askPerplexity(prompt: string): Promise<string> {
     body: JSON.stringify({
       model,
       include_citations: true,
-      web_access: true,                    // ⬅️ habilita búsqueda y URLs
+      web_access: true,
       messages: [
         { role: "system", content: "Be precise and concise." },
         { role: "user",   content: prompt },
@@ -35,36 +36,36 @@ async function askPerplexity(prompt: string): Promise<string> {
 
   const json = await res.json()
 
-  /* ─ Log una sola vez en modo dev ─ */
-0  if (process.env.NODE_ENV !== "production") {
+  /* LOG solo en dev */
+  if (process.env.NODE_ENV !== "production") {
     console.log("RAW PERPLEXITY RESPONSE")
     console.dir(json, { depth: null })
   }
 
-  const text: string =
-    json.choices?.[0]?.message?.content ?? "(no answer)"
+  /* texto con tokens */
+  const text = json.choices?.[0]?.message?.content ?? "(no answer)"
 
-  /* acepta citations o source_attributions */
+  /* recoge citas */
   type Raw = { id?: number; url?: string; source?: string }
   const raw: Raw[] = json.citations ?? json.source_attributions ?? []
-
-  const table: Record<string, string> = {}
+  const map: Record<string, string> = {}
   raw.forEach((c) => {
-    const key  = String((c.id ?? 0) + 1)          // 0-based → [1]
-    const link = c.url ?? c.source ?? ""
-    if (link) table[key] = link
+    const k = String((c.id ?? 0) + 1)        // 0 → [1]
+    const l = c.url ?? c.source ?? ""
+    if (l) map[k] = l
   })
 
+  /* sustituir */
   const html = text.replace(/\[(\d+)]/g, (_, n) =>
-    table[n]
-      ? `<a href="${table[n]}" target="_blank" class="text-blue-600 underline">[${n}]</a>`
+    map[n]
+      ? `<a href="${map[n]}" target="_blank" class="text-blue-600 underline">[${n}]</a>`
       : `[${n}]`
   )
 
   return html
 }
 
-/* ── Helper batching ─ */
+/* ── Helper ── */
 async function inBatches<T, R>(
   items: T[],
   size: number,
@@ -72,8 +73,7 @@ async function inBatches<T, R>(
 ) {
   const out: R[] = []
   for (let i = 0; i < items.length; i += size) {
-    const slice   = items.slice(i, i + size)
-    const settled = await Promise.allSettled(slice.map(fn))
+    const settled = await Promise.allSettled(items.slice(i, i + size).map(fn))
     settled.forEach((s) =>
       s.status === "fulfilled"
         ? out.push(s.value)
@@ -83,13 +83,15 @@ async function inBatches<T, R>(
   return out
 }
 
-/* ── Main action ─ */
+/* ── Main action ── */
 export async function runPerplexity(reportId: string) {
-  const { data: qs } = await supabase
+  const { data: qs, error } = await supabase
     .from("report_questions")
     .select("id, question_text")
     .eq("report_id", reportId)
     .is("answer_text", null)
+
+  if (error) throw new Error("Failed to fetch questions")
 
   const answers = await inBatches(
     qs ?? [],
