@@ -1,56 +1,41 @@
 @import "tailwindcss";
-@import "./styles/tiptap.css";   /* ⬅️  importa primero el CSS del editor */
+@import "./styles/tiptap.css";          /* editor tiptap – ya existente */
 
-/* ───────────────────  Variables de color  ─────────────────── */
+/* ─ Palette & fonts ─────────────────────────────────────────────────── */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #0d0d0d;
+  --fg: #e5e7eb;
+  --accent: #3b82f6;
+  --card: #161616;
+  --border: #262626;
+  --radius: 0.5rem;
+  --font-sans: ui-sans-serif, system-ui, sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
-/* ───────────────────  Paleta Tailwind inline  ─────────────── */
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-/* ───────────────────  Estilos base  ───────────────────────── */
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  @apply antialiased;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
 }
 
-/* Links azules coherentes */
-a       { color: #3b82f6; }
+/* links coherentes */
+a       { color: var(--accent); }
 a:hover { text-decoration: underline; }
 
-/* Tipografía Tailwind prose (modo oscuro) */
+/* typography rendered (prose) + editor tiptap */
 .prose,
-.ProseMirror {
-  @apply prose prose-invert max-w-none;
-}
+.ProseMirror { @apply prose prose-invert max-w-none; }
 
-/* ───────────────────  Estilos del editor Tiptap  ──────────── */
-.ProseMirror {
-  background: #1b1b1b;
-  border: 1px solid #374151;
-  border-radius: 0.375rem;
-  padding: 1rem;
-  min-height: 200px;
-  outline: none;
+/* cards */
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  transition: border-color 150ms;
 }
+.card:hover { border-color: var(--accent); }
 
-/* Tablas dentro de Tiptap */
-.ProseMirror table { @apply border-collapse border border-zinc-700; }
-.ProseMirror th,
-.ProseMirror td   { @apply border border-zinc-700 px-2; }
+/* header blur */
+.backdrop-blur { backdrop-filter: blur(6px); }
 
