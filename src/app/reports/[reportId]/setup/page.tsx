@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabaseClient"
 import { addQuestion } from "@/app/actions/addQuestion"
 import { runPerplexityFiltered } from "@/app/actions/runPerplexityFiltered"
+import ProgressBar from "@/components/ProgressBar"
 
 interface Row {
   id: string
@@ -19,6 +20,7 @@ export default function SetupPage() {
   const [selected, setSelected] = useState<Record<string, boolean>>({})
   const [loading, setLoading] = useState(true)
   const [running, setRunning] = useState(false)
+  const [done, setDone] = useState(0)
   const [newQ, setNewQ] = useState("")
 
   /* fetch questions */
@@ -38,7 +40,7 @@ export default function SetupPage() {
     load()
   }, [reportId])
 
-  /* toggle checkbox */
+  /* toggle */
   const toggle = (id: string) =>
     setSelected((s) => ({ ...s, [id]: !s[id] }))
 
@@ -52,26 +54,21 @@ export default function SetupPage() {
     setNewQ("")
   }
 
-  /* run Perplexity for selected */
+  /* run with progress */
   async function handleRun() {
     const ids = Object.keys(selected).filter((id) => selected[id])
-    if (ids.length === 0) {
-      alert("Select at least one question"); return
-    }
+    if (!ids.length) return alert("Select at least one question")
     setRunning(true)
-    try {
-      await runPerplexityFiltered(reportId, ids)
-      router.push(`/reports/${reportId}/output`)
-    } catch (err) {
-      console.error(err)
-      alert("Error running Perplexity")
-    } finally {
-      setRunning(false)
+    setDone(0)
+    for (const id of ids) {
+      await runPerplexityFiltered(reportId, [id])
+      setDone((d) => d + 1)
     }
+    router.push(`/reports/${reportId}/output`)
   }
 
   return (
-    <div className="p-6 max-w-3xl mx-auto">
+    <div>
       <h1 className="text-2xl font-bold mb-4">Setup</h1>
 
       {loading ? (
@@ -98,7 +95,7 @@ export default function SetupPage() {
           value={newQ}
           onChange={(e) => setNewQ(e.target.value)}
           placeholder="Add custom question…"
-          className="flex-1 border rounded p-2"
+          className="flex-1 border rounded p-2 text-black"
         />
         <button className="bg-gray-200 px-3 rounded">Add</button>
       </form>
@@ -110,6 +107,13 @@ export default function SetupPage() {
       >
         {running ? "Running…" : "Run selected"}
       </button>
+
+      {running && (
+        <ProgressBar
+          done={done}
+          total={Object.values(selected).filter(Boolean).length}
+        />
+      )}
     </div>
   )
 }

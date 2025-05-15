@@ -1,9 +1,9 @@
-"use client"
+k"use client"
 
 import React, { useEffect, useState } from "react"
-import Link from "next/link"
 import { useParams } from "next/navigation"
 import { supabase } from "@/lib/supabaseClient"
+import EditAnswerModal from "@/components/EditAnswerModal"
 
 interface QA {
   id: string
@@ -13,8 +13,14 @@ interface QA {
 
 export default function OutputPage() {
   const { reportId } = useParams<{ reportId: string }>()
-  const [qas, setQas] = useState<QA[]>([])
+  const [rows, setRows] = useState<QA[]>([])
   const [loading, setLoading] = useState(true)
+
+  /* modal state */
+  const [modalOpen, setModalOpen] = useState(false)
+  const [current, setCurrent] = useState<{ id: string; html: string } | null>(
+    null
+  )
 
   useEffect(() => {
     async function load() {
@@ -23,41 +29,51 @@ export default function OutputPage() {
         .select("id, question_text, answer_text")
         .eq("report_id", reportId)
         .order("id")
-      setQas(data ?? [])
+      setRows(data ?? [])
       setLoading(false)
     }
     load()
-  }, [reportId])
+  }, [reportId, modalOpen]) // reload after modal saves
+
+  function openEdit(id: string, html: string) {
+    setCurrent({ id, html })
+    setModalOpen(true)
+  }
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
-      <header className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Output</h1>
-        <Link
-          href={`/reports/${reportId}/setup`}
-          className="text-blue-600 underline"
-        >
-          ← Back to Setup
-        </Link>
-      </header>
+    <div>
+      <h1 className="text-2xl font-bold mb-4">Output</h1>
 
       {loading ? (
         <p>Loading…</p>
       ) : (
-        qas.map((qa, i) => (
-          <article key={qa.id} className="mb-10">
-            <h2 className="font-semibold text-lg mb-2">
+        rows.map((qa, i) => (
+          <div key={qa.id} className="mb-8">
+            <h3 className="font-semibold mb-2">
               {i + 1}. {qa.question_text}
-            </h2>
+            </h3>
             <section
-              className="prose max-w-none"
+              className="prose prose-invert max-w-none border border-zinc-800 rounded p-4"
               dangerouslySetInnerHTML={{
                 __html: qa.answer_text ?? "<em>(no answer)</em>",
               }}
             />
-          </article>
+            <button
+              onClick={() => openEdit(qa.id, qa.answer_text ?? "")}
+              className="mt-2 text-sm text-blue-400 hover:underline"
+            >
+              Edit
+            </button>
+          </div>
         ))
       )}
+
+      <EditAnswerModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        answerId={current?.id ?? ""}
+        initialHtml={current?.html ?? ""}
+      />
     </div>
   )
 }
