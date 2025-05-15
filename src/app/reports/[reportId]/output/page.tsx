@@ -16,25 +16,23 @@ export default function OutputPage() {
   const [rows, setRows] = useState<QA[]>([])
   const [loading, setLoading] = useState(true)
 
-  /* modal state */
   const [modalOpen, setModalOpen] = useState(false)
   const [current, setCurrent] = useState<{ id: string; html: string } | null>(
     null
   )
 
-  /* load Q&A */
+  /* fetch */
   useEffect(() => {
-    async function load() {
-      const { data } = await supabase
-        .from("report_questions")
-        .select("id, question_text, answer_text")
-        .eq("report_id", reportId)
-        .order("id")
-      setRows(data ?? [])
-      setLoading(false)
-    }
-    load()
-  }, [reportId, modalOpen]) // recarga cuando cierra modal (después de guardar)
+    supabase
+      .from("report_questions")
+      .select("id, question_text, answer_text")
+      .eq("report_id", reportId)
+      .order("id")
+      .then(({ data }) => {
+        setRows(data ?? [])
+        setLoading(false)
+      })
+  }, [reportId, modalOpen]) // recarga tras guardar
 
   function openEdit(id: string, html: string) {
     setCurrent({ id, html })
@@ -43,7 +41,7 @@ export default function OutputPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-4">Output</h1>
+      <h1 className="text-3xl font-bold mb-8">Output</h1>
 
       {loading ? (
         <p>Loading…</p>
@@ -54,9 +52,9 @@ export default function OutputPage() {
               {i + 1}. {qa.question_text}
             </h3>
 
-            {/* respuesta */}
+            {/* ⬇️ SE QUITA `prose`; se usa spacing + leading */}
             <section
-              className="prose dark:prose-invert max-w-none border border-zinc-800 rounded p-4"
+              className="space-y-4 leading-relaxed border border-zinc-800 rounded p-4"
               dangerouslySetInnerHTML={{
                 __html: qa.answer_text ?? "<em>(no answer)</em>",
               }}
@@ -72,7 +70,6 @@ export default function OutputPage() {
         ))
       )}
 
-      {/* modal */}
       <EditAnswerModal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
@@ -82,4 +79,3 @@ export default function OutputPage() {
     </div>
   )
 }
-
