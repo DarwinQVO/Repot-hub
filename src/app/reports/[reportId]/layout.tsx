@@ -10,7 +10,7 @@ export default function ReportLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // ✅ sin "any"
+  /* ✅ sin “any” */
   const { reportId, slug } = useParams<RouteParams>();
 
   const base = `/reports/${reportId}`;
@@ -19,12 +19,8 @@ export default function ReportLayout({
     <div>
       {/* Tabs */}
       <div className="mb-6 border-b border-zinc-800 flex gap-6">
-        <Tab href={`${base}/setup`} active={slug === "setup"}>
-          Setup
-        </Tab>
-        <Tab href={`${base}/output`} active={slug === "output"}>
-          Output
-        </Tab>
+        <Tab href={`${base}/setup`}  active={slug === "setup"}>Setup</Tab>
+        <Tab href={`${base}/output`} active={slug === "output"}>Output</Tab>
       </div>
       {children}
     </div>
