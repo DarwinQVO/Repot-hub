@@ -1,16 +1,19 @@
-"use client"
+"use client";
 
-import Link from "next/link"
-import { useParams } from "next/navigation"
+import Link from "next/link";
+import { useParams } from "next/navigation";
+
+type RouteParams = { reportId: string; slug?: string };
 
 export default function ReportLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
-  const { reportId, slug } =
-    useParams<{ reportId: string; slug: string }>() as any
-  const base = `/reports/${reportId}`
+  // ✅ sin "any"
+  const { reportId, slug } = useParams<RouteParams>();
+
+  const base = `/reports/${reportId}`;
 
   return (
     <div>
@@ -25,7 +28,7 @@ export default function ReportLayout({
       </div>
       {children}
     </div>
-  )
+  );
 }
 
 function Tab({
@@ -33,9 +36,9 @@ function Tab({
   active,
   children,
 }: {
-  href: string
-  active: boolean
-  children: React.ReactNode
+  href: string;
+  active: boolean;
+  children: React.ReactNode;
 }) {
   return (
     <Link
@@ -48,6 +51,5 @@ function Tab({
     >
       {children}
     </Link>
-  )
+  );
 }
-
