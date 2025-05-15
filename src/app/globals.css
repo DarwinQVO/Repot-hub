@@ -1,17 +1,18 @@
 @import "tailwindcss";
-@import "./styles/tiptap.css";          /* editor tiptap – ya existente */
+@import "../styles/tiptap.css";   /* ← ruta correcta al editor */
 
-/* ─ Palette & fonts ─────────────────────────────────────────────────── */
+/* ─ Palette & fonts ─────────────────────────────────────────── */
 :root {
-  --bg: #0d0d0d;
-  --fg: #e5e7eb;
-  --accent: #3b82f6;
-  --card: #161616;
-  --border: #262626;
-  --radius: 0.5rem;
+  --bg:      #0d0d0d;
+  --fg:      #e5e7eb;
+  --accent:  #3b82f6;
+  --card:    #161616;
+  --border:  #262626;
+  --radius:  0.5rem;
   --font-sans: ui-sans-serif, system-ui, sans-serif;
 }
 
+/* ─ Base styles ─────────────────────────────────────────────── */
 body {
   @apply antialiased;
   background: var(--bg);
@@ -19,15 +20,15 @@ body {
   font-family: var(--font-sans);
 }
 
-/* links coherentes */
+/* Links azules coherentes */
 a       { color: var(--accent); }
 a:hover { text-decoration: underline; }
 
-/* typography rendered (prose) + editor tiptap */
+/* Typography (prose) y editor Tiptap */
 .prose,
 .ProseMirror { @apply prose prose-invert max-w-none; }
 
-/* cards */
+/* Card componente */
 .card {
   background: var(--card);
   border: 1px solid var(--border);
@@ -36,6 +37,5 @@ a:hover { text-decoration: underline; }
 }
 .card:hover { border-color: var(--accent); }
 
-/* header blur */
+/* Header blur */
 .backdrop-blur { backdrop-filter: blur(6px); }
-
