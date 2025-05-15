@@ -3,9 +3,10 @@
 import React, { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabaseClient"
-import { runPerplexity } from "@/app/actions/runPerplexity"
+import { addQuestion } from "@/app/actions/addQuestion"
+import { runPerplexityFiltered } from "@/app/actions/runPerplexityFiltered"
 
-interface QuestionRow {
+interface Row {
   id: string
   question_text: string
 }
@@ -13,28 +14,53 @@ interface QuestionRow {
 export default function SetupPage() {
   const { reportId } = useParams<{ reportId: string }>()
   const router = useRouter()
-  const [questions, setQuestions] = useState<QuestionRow[]>([])
+
+  const [rows, setRows] = useState<Row[]>([])
+  const [selected, setSelected] = useState<Record<string, boolean>>({})
   const [loading, setLoading] = useState(true)
   const [running, setRunning] = useState(false)
+  const [newQ, setNewQ] = useState("")
 
-  /* Load questions once */
+  /* fetch questions */
   useEffect(() => {
-    async function fetchQuestions() {
+    async function load() {
       const { data } = await supabase
         .from("report_questions")
         .select("id, question_text")
         .eq("report_id", reportId)
         .order("id")
-      setQuestions(data ?? [])
+      setRows(data ?? [])
+      setSelected(
+        Object.fromEntries((data ?? []).map((r) => [r.id, true]))
+      )
       setLoading(false)
     }
-    fetchQuestions()
+    load()
   }, [reportId])
 
+  /* toggle checkbox */
+  const toggle = (id: string) =>
+    setSelected((s) => ({ ...s, [id]: !s[id] }))
+
+  /* add question */
+  async function handleAdd(e: React.FormEvent) {
+    e.preventDefault()
+    if (!newQ.trim()) return
+    const row = await addQuestion(reportId, newQ.trim())
+    setRows((prev) => [...prev, row])
+    setSelected((prev) => ({ ...prev, [row.id]: true }))
+    setNewQ("")
+  }
+
+  /* run Perplexity for selected */
   async function handleRun() {
+    const ids = Object.keys(selected).filter((id) => selected[id])
+    if (ids.length === 0) {
+      alert("Select at least one question"); return
+    }
     setRunning(true)
     try {
-      await runPerplexity(reportId)
+      await runPerplexityFiltered(reportId, ids)
       router.push(`/reports/${reportId}/output`)
     } catch (err) {
       console.error(err)
@@ -51,22 +77,38 @@ export default function SetupPage() {
       {loading ? (
         <p>Loading…</p>
       ) : (
-        <ul className="space-y-2">
-          {questions.map((q, i) => (
-            <li key={q.id} className="border rounded p-3 bg-gray-50">
-              <span className="font-semibold mr-2">{i + 1}.</span>
-              {q.question_text}
+        <ul className="space-y-2 mb-6">
+          {rows.map((r, i) => (
+            <li key={r.id} className="flex items-start gap-2">
+              <input
+                type="checkbox"
+                checked={!!selected[r.id]}
+                onChange={() => toggle(r.id)}
+                className="mt-1"
+              />
+              <span>{i + 1}. {r.question_text}</span>
             </li>
           ))}
         </ul>
       )}
 
+      {/* add question */}
+      <form onSubmit={handleAdd} className="mb-6 flex gap-2">
+        <input
+          value={newQ}
+          onChange={(e) => setNewQ(e.target.value)}
+          placeholder="Add custom question…"
+          className="flex-1 border rounded p-2"
+        />
+        <button className="bg-gray-200 px-3 rounded">Add</button>
+      </form>
+
       <button
         onClick={handleRun}
         disabled={running}
-        className="mt-6 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
+        className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
       >
-        {running ? "Running…" : "Run"}
+        {running ? "Running…" : "Run selected"}
       </button>
     </div>
   )
