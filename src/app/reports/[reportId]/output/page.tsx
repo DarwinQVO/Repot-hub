@@ -22,6 +22,7 @@ export default function OutputPage() {
     null
   )
 
+  /* load Q&A */
   useEffect(() => {
     async function load() {
       const { data } = await supabase
@@ -33,7 +34,7 @@ export default function OutputPage() {
       setLoading(false)
     }
     load()
-  }, [reportId, modalOpen]) // reload after modal saves
+  }, [reportId, modalOpen]) // recarga cuando cierra modal (después de guardar)
 
   function openEdit(id: string, html: string) {
     setCurrent({ id, html })
@@ -52,12 +53,15 @@ export default function OutputPage() {
             <h3 className="font-semibold mb-2">
               {i + 1}. {qa.question_text}
             </h3>
+
+            {/* respuesta */}
             <section
-              className="prose prose-invert max-w-none border border-zinc-800 rounded p-4"
+              className="prose dark:prose-invert max-w-none border border-zinc-800 rounded p-4"
               dangerouslySetInnerHTML={{
                 __html: qa.answer_text ?? "<em>(no answer)</em>",
               }}
             />
+
             <button
               onClick={() => openEdit(qa.id, qa.answer_text ?? "")}
               className="mt-2 text-sm text-blue-400 hover:underline"
@@ -68,6 +72,7 @@ export default function OutputPage() {
         ))
       )}
 
+      {/* modal */}
       <EditAnswerModal
         open={modalOpen}
         onClose={() => setModalOpen(false)}

@@ -1,5 +1,16 @@
-/* tiptap.css – minimal editor styles */
+/* tiptap.css – dark mode friendly */
 .ProseMirror {
   outline: none;
+  color: #fff;
+  background-color: #1e1e1e;
+  min-height: 200px;       /* espacio visible */
+  padding: 1rem;
+  border-radius: 0.375rem; /* rounded */
+}
+
+/* enlaces en editor */
+.ProseMirror a {
+  color: #3b82f6;          /* azul Tailwind */
+  text-decoration: underline;
 }
 
